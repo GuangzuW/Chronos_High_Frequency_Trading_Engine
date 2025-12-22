@@ -1,0 +1,51 @@
+name: Chronos CI Pipeline
+
+#Trigger the pipeline on Push to Main or any Pull Request
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (GCC 13 / C++20)
+    runs-on: ubuntu-latest
+
+  # We run inside a container to guarantee C++20 support
+    container:
+      image: gcc:13
+      options: --user root
+
+    steps:
+      # checkout code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Install Build tools (CMAKE and Ninja) inside the container
+      - name: Install Dependencies
+        run: |
+          apt-get update
+          apt-get install -y cmake ninja-build cppcheck
+
+      # Static Analysis(the "Quality Gate")
+      # Fails if your code has bugs
+      - name: Run CppCheck
+        run: cppcheck --enable=all --error-exitcode=1 --suppress=missingIncludeSystem src/
+
+      # Configure CMAKE (Force c++ 20)
+      - name: Configure CMAKE
+        run: cmake -B build -G Ninja -DCMAKE_CXX_STANDARD=20
+
+      # Build the Project
+      - name: Build Source
+        run: cmake --build build
+
+      # Run Test
+      - name: Run Unit Tests
+        run: |
+          cd build
+          ctest --output-on-failure
+
+
+
