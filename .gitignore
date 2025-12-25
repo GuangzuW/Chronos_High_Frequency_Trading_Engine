@@ -39,3 +39,36 @@
 
 # debug information files
 *.dwo
+
+# Cmake build directories
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+CTestingfile.cmake
+Testing/
+
+#FetchContent dependencencies
+_deps/
+
+# IDE specific. files
+.vscode/
+*.code-workspace
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test results
+*.log
+test_results/
+*/xml
+
+# Docker
+.dickerignore
+*.Tar

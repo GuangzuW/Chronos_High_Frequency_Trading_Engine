@@ -5,7 +5,7 @@ FROM gcc:13 AS builder
 RUN apt-get update && apt-get install -y \
     cmake \
     ninja-build \
-    && rm - rf /var/lib/apt/list/*
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -18,12 +18,12 @@ RUN cmake --build build
 
 # Stage 2: The Production Runtime(Lightweight)
 # use a distroless or minimal image for security and speed
-FROM ubuntu:22.04 AS runtime
+FROM ubuntu:24.04 AS runtime
 
 # Install only runtime dependencies
 RUN apt-get update && apt-get install -y \
     libstdc++6 \
-    && rm -rf /var/lib/apt/list/*
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

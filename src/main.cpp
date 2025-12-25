@@ -3,7 +3,7 @@
 #include <span>
 
 int main() {
-    std::vercor<int> market_data = {100, 101, 102, 99, 98};
+    std::vector<int> market_data = {100, 101, 102, 99, 98};
     //Usage of c++20 std:span(Zero-copy view)
     std::span<int> data_view = market_data;
 
