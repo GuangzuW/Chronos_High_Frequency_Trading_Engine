@@ -5,6 +5,8 @@ FROM gcc:13 AS builder
 RUN apt-get update && apt-get install -y \
     cmake \
     ninja-build \
+    libgtest-dev \
+    libzmq3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -23,6 +25,7 @@ FROM ubuntu:24.04 AS runtime
 # Install only runtime dependencies
 RUN apt-get update && apt-get install -y \
     libstdc++6 \
+    libzmq5 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -30,10 +30,33 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
+# STATIC ANALYSIS (CppCheck) ---
+# Check if cppcheck is installed
+find_program(CPPCHECK_PATH cppcheck)
+
+if(CPPCHECK_PATH)
+    message(STATUS "CppCheck found: ${CPPCHECK_PATH}")
+    # Enable static analysis for the next target
+    set(CMAKE_CXX_CPPCHECK
+            "${CPPCHECK_PATH}"
+            "--enable=warning,performance,portability"
+            "--suppress=missingIncludeSystem"
+            "--inconclusive"
+    )
+else()
+    message(WARNING "CppCheck not found! Static analysis disabled.")
+endif()
+
 # Main Executable
 add_executable(chronos_engine src/main.cpp
         tests/test_main.cpp
         tests/test_main.h)
+# MICROSERVICES LIB (ZeroMQ) ---
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(ZMQ REQUIRED libzmq)
+
+target_include_directories(chronos_engine PRIVATE ${ZMQ_INCLUDE_DIRS})
+target_link_libraries(chronos_engine PRIVATE ${ZMQ_LIBRARIES})
 
 #Testing Module
 enable_testing()
