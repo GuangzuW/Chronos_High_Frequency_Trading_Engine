@@ -3,6 +3,13 @@ project(Chronos_HFT VERSION 0.1.0 LANGUAGES CXX)
 
 # Modern C++ Standards
 set(CMAKE_CXX_STANDARD 20)
+
+# COVERAGE FLAGS(Debug Mode Only)
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+    add_compile_options(--coverage -O0)
+    add_link_options(--coverage)
+endif()
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 

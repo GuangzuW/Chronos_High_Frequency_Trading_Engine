@@ -60,7 +60,12 @@ _deps/
 *.code-workspace
 .idea/
 *.swp
-*.swo
+*.swobuild/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
 *~
 .DS_Store
 

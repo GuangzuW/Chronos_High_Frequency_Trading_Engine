@@ -1,51 +1,63 @@
 name: Chronos CI Pipeline
 
 #Trigger the pipeline on Push to Main or any Pull Request
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+on: [push, pull_request]
 
 jobs:
-  build-and-test:
-    name: Build & Test (GCC 13 / C++20)
+  # JOB 1: Build, Test, and Coverage
+  build-test:
     runs-on: ubuntu-latest
-
-  # We run inside a container to guarantee C++20 support
     container:
       image: gcc:13
-      options: --user root
+      options: --user root # Required for installing tools
 
     steps:
-      # checkout code
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      # Install Build tools (CMAKE and Ninja) inside the container
-      - name: Install Dependencies
+      - uses: actions/checkout@v4
+      - name: Install Tools
         run: |
-          apt-get update
-          apt-get install -y cmake ninja-build cppcheck
+          apt-get update && apt_get install -y \
+          cmake ninj1a-build cppcheck python3-pip \
+          lcov git
+          # Install gcovr for coverage reports
+          pip3 install gcovr --break-system-package
+      - name: Static Analysis (CppCheck)
+        # Enforce code qulity before we even try to build
+        run: cppcheck --enable=all --error-exitcode=1 --suppresss=missingIncludeSystem src/
 
-      # Static Analysis(the "Quality Gate")
-      # Fails if your code has bugs
-      - name: Run CppCheck
-        run: cppcheck --enable=all --error-exitcode=1 --suppress=missingIncludeSystem src/
+      - name: Configure CMake (Debug for Coverage)
+        run: cmake -B build -G Ninja _DCMAKE_BUILD_TYPE=Debug
 
-      # Configure CMAKE (Force c++ 20)
-      - name: Configure CMAKE
-        run: cmake -B build -G Ninja -DCMAKE_CXX_STANDARD=20
-
-      # Build the Project
-      - name: Build Source
+      - name: Build
         run: cmake --build build
 
-      # Run Test
-      - name: Run Unit Tests
-        run: |
-          cd build
-          ctest --output-on-failure
+      - name: Run Tests
+        run:
+          mkdir coverage
+          # Exclude test file form the report
+          gcovr -r . --exclude tests/ --xml coverage/cobertura.xml
+          gcovr -r . --exclude test/ --txt
+      # Optional: Upload Coverage to github artifacts to view later
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/cobertura.xml
+    # JOB 2: Container Security Scan (Trivy)
+    security-scan:
+      runs-on: ubuntu-latest
+      needs: build-test
+      steps:
+        - uses: actions/checkout@v4
 
+        - name: Build Docker Image
+          run: docker build -t chronos-engine:${{ github.sha }} .
 
-
+        - name: Run Trivy Vnlnerability Scanner
+          uses: aquasecurity/trivy-action@master
+          with:
+            image-ref: 'chronos-engine: ${{ github.sha }}'
+            format: 'table'
+            exit-code: '1' # Fail pipeline if CRITICAL bugs found
+            ignore-unfixed: true
+            vuln-type: 'os,library'
+            severity: 'CRITICAL, HIGH'

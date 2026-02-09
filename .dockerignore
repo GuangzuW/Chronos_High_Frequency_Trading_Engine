@@ -1,0 +1,10 @@
+# Ignore local build folders
+build/
+cmake-build-debug/
+.cache/
+
+# Ignore version control and IDE settings
+.git/
+.vscode/
+.idea/
+.DS_Store
