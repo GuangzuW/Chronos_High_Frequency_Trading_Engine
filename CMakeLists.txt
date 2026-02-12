@@ -56,6 +56,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(ZMQ REQUIRED libzmq)
 
 target_include_directories(chronos_engine PRIVATE ${ZMQ_INCLUDE_DIRS})
+target_link_directories(chronos_engine PRIVATE ${ZMQ_LIBRARY_DIRS})
 target_link_libraries(chronos_engine PRIVATE ${ZMQ_LIBRARIES})
 
 #Testing Module
