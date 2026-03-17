@@ -46,6 +46,23 @@ public:
     }
 
     /**
+     * @brief Get the oldest order at this price (FIFO front), const version.
+     */
+    const Order* front() const {
+        return orders_.empty() ? nullptr : orders_.front();
+    }
+
+    /**
+     * @brief Partially fill the oldest order.
+     */
+    void fillFront(int64_t quantity) {
+        if (!orders_.empty()) {
+            orders_.front()->quantity = Quantity(orders_.front()->quantity.value() - quantity);
+            total_quantity_ -= quantity;
+        }
+    }
+
+    /**
      * @brief Remove the oldest order (O(1)).
      */
     void popFront() {

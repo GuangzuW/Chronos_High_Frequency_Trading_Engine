@@ -29,16 +29,16 @@ protected:
 };
 
 TEST_F(LOBTest, AddAndOrderSorting) {
-    lob->addOrder(createOrder(1, Price(100), Quantity(10), OrderSide::Buy));
-    lob->addOrder(createOrder(2, Price(110), Quantity(20), OrderSide::Buy));
-    lob->addOrder(createOrder(3, Price(105), Quantity(15), OrderSide::Buy));
+    lob->processOrder(createOrder(1, Price(100), Quantity(10), OrderSide::Buy), pool->get_resource());
+    lob->processOrder(createOrder(2, Price(110), Quantity(20), OrderSide::Buy), pool->get_resource());
+    lob->processOrder(createOrder(3, Price(105), Quantity(15), OrderSide::Buy), pool->get_resource());
 
     // Bids should be sorted high -> low: 110, 105, 100
     EXPECT_EQ(lob->numBidLevels(), 3);
     EXPECT_EQ(lob->getBestBid()->price(), Price(110));
 
-    lob->addOrder(createOrder(4, Price(120), Quantity(10), OrderSide::Sell));
-    lob->addOrder(createOrder(5, Price(115), Quantity(20), OrderSide::Sell));
+    lob->processOrder(createOrder(4, Price(120), Quantity(10), OrderSide::Sell), pool->get_resource());
+    lob->processOrder(createOrder(5, Price(115), Quantity(20), OrderSide::Sell), pool->get_resource());
 
     // Asks should be sorted low -> high: 115, 120
     EXPECT_EQ(lob->numAskLevels(), 2);
@@ -46,8 +46,8 @@ TEST_F(LOBTest, AddAndOrderSorting) {
 }
 
 TEST_F(LOBTest, CancelOrder) {
-    lob->addOrder(createOrder(1, Price(100), Quantity(10), OrderSide::Buy));
-    lob->addOrder(createOrder(2, Price(100), Quantity(20), OrderSide::Buy));
+    lob->processOrder(createOrder(1, Price(100), Quantity(10), OrderSide::Buy), pool->get_resource());
+    lob->processOrder(createOrder(2, Price(100), Quantity(20), OrderSide::Buy), pool->get_resource());
 
     EXPECT_EQ(lob->numBidLevels(), 1);
     EXPECT_EQ(lob->numOrders(), 2);
