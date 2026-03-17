@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { createChart, ISeriesApi, CandlestickData, Time } from 'lightweight-charts';
+import { createChart, ISeriesApi, CandlestickData, Time, SeriesType } from 'lightweight-charts';
 import { useTradeStore } from '@/store/useTradeStore';
 
 const PriceChart = () => {
@@ -30,7 +30,7 @@ const PriceChart = () => {
       },
     });
 
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addSeries(SeriesType.Candlestick, {
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderVisible: false,
