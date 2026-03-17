@@ -1,3 +1,7 @@
-add_executable(unit_tests test_main.cpp)
+add_executable(unit_tests test_main.cpp test_types.cpp test_memory_pool.cpp test_price_level.cpp)
 target_link_libraries(unit_tests GTest::gtest_main)
+target_include_directories(unit_tests PRIVATE ../include)
 add_test(NAME CoreLogicTest COMMAND unit_tests)
+add_test(NAME CoreTypesTest COMMAND unit_tests --gtest_filter=CoreTypesTest.*)
+add_test(NAME MemoryPoolTest COMMAND unit_tests --gtest_filter=MemoryPoolTest.*)
+add_test(NAME PriceLevelTest COMMAND unit_tests --gtest_filter=PriceLevelTest.*)

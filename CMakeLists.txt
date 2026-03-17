@@ -48,9 +48,8 @@ else()
 endif()
 
 # Main Executable
-add_executable(chronos_engine src/main.cpp
-        tests/test_main.cpp
-        tests/test_main.h)
+add_executable(chronos_engine src/main.cpp)
+target_include_directories(chronos_engine PUBLIC include)
 # MICROSERVICES LIB (ZeroMQ) ---
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ZMQ REQUIRED libzmq)
