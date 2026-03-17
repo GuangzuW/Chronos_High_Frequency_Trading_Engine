@@ -2,12 +2,22 @@ import asyncio
 import threading
 import zmq
 import json
+import time
 from typing import List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from bridge.schemas import Order, Trade
-from bridge.decoder import decode_order, decode_trade
+from bridge.schemas import Order, Trade, OrderRequest, OrderStatus
+from bridge.decoder import decode_order, decode_trade, encode_order
 
 app = FastAPI(title="Chronos API Bridge")
+
+# Global ZMQ context and sockets
+zmq_context = zmq.Context()
+ingress_socket = zmq_context.socket(zmq.DEALER)
+ingress_socket.setsockopt(zmq.IDENTITY, b"bridge_proxy")
+ingress_socket.connect("tcp://localhost:5555")
+
+# Simple order ID generator
+order_id_counter = 1000
 
 class ConnectionManager:
     def __init__(self):
@@ -25,27 +35,24 @@ class ConnectionManager:
             try:
                 await connection.send_text(message)
             except Exception:
-                # Handle stale connections
                 pass
 
 manager = ConnectionManager()
 
 def zmq_listener():
     """Background thread to poll ZMQ PUB/SUB from the engine"""
-    context = zmq.Context()
-    socket = context.socket(zmq.SUB)
-    socket.connect("tcp://localhost:5556")
-    socket.setsockopt_string(zmq.SUBSCRIBE, "TRADE")
-    socket.setsockopt_string(zmq.SUBSCRIBE, "ORDER")
+    sub_socket = zmq_context.socket(zmq.SUB)
+    sub_socket.connect("tcp://localhost:5556")
+    sub_socket.setsockopt_string(zmq.SUBSCRIBE, "TRADE")
+    sub_socket.setsockopt_string(zmq.SUBSCRIBE, "ORDER")
     
-    # Use a new event loop for this thread to handle the async broadcast
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     while True:
         try:
-            topic = socket.recv_string()
-            payload = socket.recv()
+            topic = sub_socket.recv_string()
+            payload = sub_socket.recv()
             
             event_data = {}
             if topic == "TRADE":
@@ -56,7 +63,6 @@ def zmq_listener():
                 event_data = {"type": "ORDER", "data": order.model_dump()}
             
             if event_data:
-                # Broadcast to all WS clients
                 asyncio.run_coroutine_threadsafe(
                     manager.broadcast(json.dumps(event_data)), 
                     loop
@@ -66,7 +72,6 @@ def zmq_listener():
 
 @app.on_event("startup")
 async def startup_event():
-    # Start ZMQ listener in a separate thread
     thread = threading.Thread(target=zmq_listener, daemon=True)
     thread.start()
 
@@ -74,12 +79,32 @@ async def startup_event():
 async def health_check():
     return {"status": "online", "service": "Chronos API Bridge"}
 
+@app.post("/order")
+async def place_order(request: OrderRequest):
+    global order_id_counter
+    order_id_counter += 1
+    
+    order = Order(
+        id=order_id_counter,
+        symbol=request.symbol,
+        price=request.price,
+        quantity=request.quantity,
+        side=request.side,
+        status=OrderStatus.NEW,
+        timestamp=int(time.time_ns())
+    )
+    
+    # Send binary to C++ engine
+    binary_data = encode_order(order)
+    ingress_socket.send(binary_data)
+    
+    return {"status": "submitted", "order_id": order.id}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            # Keep connection alive
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
