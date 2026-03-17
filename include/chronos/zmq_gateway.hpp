@@ -102,7 +102,9 @@ public:
 
         // Now next_msg should contain the Order
         if (zmq_msg_size(&next_msg) == sizeof(Order)) {
-            std::memcpy(&result.order, zmq_msg_data(&next_msg), sizeof(Order));
+            const uint8_t* src = static_cast<const uint8_t*>(zmq_msg_data(&next_msg));
+            uint8_t* dst = reinterpret_cast<uint8_t*>(&result.order);
+            std::copy(src, src + sizeof(Order), dst);
             zmq_msg_close(&next_msg);
             return result;
         }
