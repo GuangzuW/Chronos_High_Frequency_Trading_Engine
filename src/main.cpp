@@ -1,7 +1,7 @@
 #include <chronos/memory_pool.hpp>
 #include <chronos/zmq_gateway.hpp>
 #include <chronos/risk_engine.hpp>
-#include <chronos/limit_order_book.hpp>
+#include <chronos/sharded_matching_engine.hpp>
 #include <chronos/event_publisher.hpp>
 #include <chronos/audit_logger.hpp>
 #include <chronos/thread_utils.hpp>
@@ -36,8 +36,11 @@ int main() {
         // 3. AI Risk Engine
         RiskEngine risk_engine("models/risk_model.onnx");
         
-        // 4. Matching Engine (Order Book)
-        LimitOrderBook lob(pool->get_resource(), &publisher);
+        // 4. Matching Engine (Sharded Order Books)
+        ShardedMatchingEngine matching_engine(pool->get_resource(), &publisher);
+        matching_engine.addSymbol("AAPL");
+        matching_engine.addSymbol("BTC");
+        matching_engine.addSymbol("ETH");
 
         // Start Audit Logger
         logger.start();
@@ -74,10 +77,10 @@ int main() {
             }
 
             // C. Matching
-            auto trades = lob.processOrder(&order, pool->get_resource());
+            auto trades = matching_engine.processOrder(&order, pool->get_resource());
             
             if (!trades.empty()) {
-                std::cout << "[Match] Executed " << trades.size() << " trades for Order " << order.id.value() << "\n";
+                std::cout << "[Match] Executed " << trades.size() << " trades for Order " << order.id.value() << " (" << order.symbol.data() << ")\n";
             }
         }
 
