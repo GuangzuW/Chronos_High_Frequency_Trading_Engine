@@ -27,14 +27,20 @@ interface TradeStore {
   trades: Trade[];
   bids: OrderBookLevel[];
   asks: OrderBookLevel[];
+  selectedSymbol: string;
   addTrade: (trade: Trade) => void;
   updateOrderBook: (order: Order) => void;
+  setSelectedSymbol: (symbol: string) => void;
 }
 
 export const useTradeStore = create<TradeStore>((set) => ({
   trades: [],
   bids: [],
   asks: [],
+  selectedSymbol: 'AAPL',
+
+  setSelectedSymbol: (symbol) => 
+    set({ selectedSymbol: symbol, trades: [], bids: [], asks: [] }),
 
   addTrade: (trade) =>
     set((state) => ({
@@ -43,8 +49,9 @@ export const useTradeStore = create<TradeStore>((set) => ({
 
   updateOrderBook: (order) =>
     set((state) => {
-      // Very simplified LOB management for the UI
-      // In a real app, we'd handle partials and removals better
+      // Only update if symbol matches
+      if (order.symbol !== state.selectedSymbol) return state;
+
       const isBuy = order.side === 0;
       const targetBook = isBuy ? [...state.bids] : [...state.asks];
       

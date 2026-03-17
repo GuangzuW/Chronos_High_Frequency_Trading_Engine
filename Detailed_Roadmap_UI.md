@@ -2,53 +2,44 @@
 
 This document outlines the tasks required to build a professional, real-time trading dashboard for the Chronos HFT Engine.
 
-## Phase 1: The API Bridge (Python/FastAPI)
+## Phase 1: The API Bridge (Python/FastAPI) - COMPLETED
 *Goal: Establish a low-latency gateway between C++ ZeroMQ events and WebSockets.*
 
-*   **Task 1.1: Environment Setup**
-    *   Initialize a Python project with `FastAPI`, `uvicorn`, and `pyzmq`.
-    *   Define the `pydantic` models for `Order` and `Trade` mirroring the C++ structs.
-*   **Task 1.2: Binary Decoder Implementation**
-    *   Implement a decoding utility using Python's `struct` module to parse the 64-byte binary messages from Chronos.
-    *   Handle `OrderId`, `Price`, and `Quantity` strong-type conversions.
-*   **Task 1.3: Real-time Event Broadcaster**
-    *   Create a background `ZMQ SUB` thread that polls Chronos (Port 5556).
-    *   Implement a `WebSocket` endpoint in FastAPI to broadcast decoded JSON events to all connected clients.
-*   **Task 1.4: Order Ingress Proxy**
-    *   Implement a `POST /order` endpoint that accepts JSON, packs it into the 64-byte binary format, and sends it to Chronos via `ZMQ DEALER` (Port 5555).
+*   **Task 1.1: Environment Setup** - DONE
+    *   Defined pydantic models in `bridge/schemas.py`.
+*   **Task 1.2: Binary Decoder Implementation** - DONE
+    *   Implemented decoding in `bridge/decoder.py` with `struct`.
+*   **Task 1.3: Real-time Event Broadcaster** - DONE
+    *   Implemented `zmq_listener` thread in `bridge/main.py` with WebSocket broadcast.
+*   **Task 1.4: Order Ingress Proxy** - DONE
+    *   Implemented `POST /order` endpoint in `bridge/main.py`.
 
-## Phase 2: Frontend Foundation (Next.js)
+## Phase 2: Frontend Foundation (Next.js) - COMPLETED
 *Goal: Build a high-performance, reactive UI skeleton.*
 
-*   **Task 2.1: Next.js Initialization**
-    *   Setup Next.js 14+ with TypeScript and Tailwind CSS.
-    *   Install UI primitives: `shadcn/ui` and `lucide-react` icons.
-*   **Task 2.2: Global State Management (Zustand)**
-    *   Implement a store to hold the current `OrderBook` state, `TradeHistory`, and `ConnectionStatus`.
-    *   Optimize for high-frequency updates (batching state changes if necessary).
-*   **Task 2.3: Layout & Theme**
-    *   Design a dark-themed "Terminal" layout with a sidebar for order entry and a main area for charts and data.
+*   **Task 2.1: Next.js Initialization** - DONE
+    *   Initialized project in `dashboard/`.
+*   **Task 2.2: Global State Management (Zustand)** - DONE
+    *   Implemented `useTradeStore.ts` with LOB and Trade history.
+*   **Task 2.3: Layout & Theme** - DONE
+    *   Dark "Terminal" layout in `dashboard/src/app/page.tsx`.
 
-## Phase 3: Real-time Components
+## Phase 3: Real-time Components - COMPLETED
 *Goal: Visualize market data with minimal latency.*
 
-*   **Task 3.1: High-Frequency Order Book**
-    *   Implement a vertical Bid/Ask list with "depth bars" (visualizing volume at each level).
-    *   Ensure the book re-sorts and updates instantly upon receiving WebSocket events.
-*   **Task 3.2: Price Charts (TradingView Integration)**
-    *   Integrate `lightweight-charts`.
-    *   Implement a data feeder that translates `Trade` events into real-time price candles.
-*   **Task 3.3: The "Tape" (Time & Sales)**
-    *   Create a scrolling, virtualized list of recent trade executions with color-coded Buy/Sell signals.
+*   **Task 3.1: High-Frequency Order Book** - DONE
+    *   Implemented `OrderBook.tsx` with depth visualizers.
+*   **Task 3.2: Price Charts (TradingView Integration)** - DONE
+    *   Integrated `lightweight-charts` in `PriceChart.tsx`.
+*   **Task 3.3: The "Tape" (Time & Sales)** - DONE
+    *   Implemented scrolling `TradeTape.tsx`.
 
-## Phase 4: Control & Integration
+## Phase 4: Control & Integration - COMPLETED
 *Goal: Manual control and simulation features.*
 
-*   **Task 4.1: Professional Order Entry Form**
-    *   Build a form for Limit and Market orders.
-    *   Include "Quick Quantity" buttons and input validation.
-*   **Task 4.2: Engine Heartbeat & Monitoring**
-    *   Display real-time connection status to the API Bridge.
-    *   Show "Matching Latency" metrics broadcasted by the engine.
-*   **Task 4.3: Multi-Symbol Support**
-    *   Implement a symbol selector to switch between different shards (e.g., AAPL, BTC, ETH).
+*   **Task 4.1: Professional Order Entry Form** - DONE
+    *   Implemented `OrderEntry.tsx` with Limit/Market toggle and Quick Qty.
+*   **Task 4.2: Engine Heartbeat & Monitoring** - DONE
+    *   Added dynamic latency display in the header.
+*   **Task 4.3: Multi-Symbol Support** - DONE
+    *   Added symbol switcher for AAPL, BTC, ETH in the terminal header.
