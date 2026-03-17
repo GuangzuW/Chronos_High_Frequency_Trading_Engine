@@ -31,6 +31,7 @@ const OrderEntry = () => {
       }
     } catch (error) {
       console.error('Failed to submit order:', error);
+      alert('Failed to connect to API Bridge. Ensure it is running on port 8000.');
     } finally {
       setIsSubmitting(false);
     }
