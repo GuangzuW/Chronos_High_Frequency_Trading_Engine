@@ -5,10 +5,20 @@ import json
 import time
 from typing import List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from bridge.schemas import Order, Trade, OrderRequest, OrderStatus
 from bridge.decoder import decode_order, decode_trade, encode_order
 
 app = FastAPI(title="Chronos API Bridge")
+
+# Enable CORS for the dashboard
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production, replace with specific dashboard URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Global ZMQ context and sockets
 zmq_context = zmq.Context()
