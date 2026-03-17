@@ -54,9 +54,31 @@ target_include_directories(chronos_engine PUBLIC include)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ZMQ REQUIRED libzmq)
 
+# AI Integration (ONNX Runtime) ---
+find_library(ONNXRUNTIME_LIBRARY NAMES onnxruntime)
+find_path(ONNXRUNTIME_INCLUDE_DIR NAMES onnxruntime_cxx_api.h PATH_SUFFIXES onnxruntime)
+
+if(ONNXRUNTIME_LIBRARY AND ONNXRUNTIME_INCLUDE_DIR)
+    message(STATUS "ONNX Runtime found: ${ONNXRUNTIME_LIBRARY}")
+    add_library(onnxruntime SHARED IMPORTED)
+    set_target_properties(onnxruntime PROPERTIES
+            IMPORTED_LOCATION "${ONNXRUNTIME_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${ONNXRUNTIME_INCLUDE_DIR}"
+    )
+    set(ONNXRUNTIME_FOUND TRUE)
+else()
+    message(WARNING "ONNX Runtime not found! Risk Engine AI features will be limited.")
+    set(ONNXRUNTIME_FOUND FALSE)
+endif()
+
 target_include_directories(chronos_engine PRIVATE ${ZMQ_INCLUDE_DIRS})
 target_link_directories(chronos_engine PRIVATE ${ZMQ_LIBRARY_DIRS})
-target_link_libraries(chronos_engine PRIVATE ${ZMQ_LIBRARIES})
+if(ONNXRUNTIME_FOUND)
+    target_link_libraries(chronos_engine PRIVATE ${ZMQ_LIBRARIES} onnxruntime)
+    target_compile_definitions(chronos_engine PRIVATE HAS_ONNXRUNTIME)
+else()
+    target_link_libraries(chronos_engine PRIVATE ${ZMQ_LIBRARIES})
+endif()
 
 #Testing Module
 enable_testing()
