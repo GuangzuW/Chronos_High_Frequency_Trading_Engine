@@ -2,6 +2,7 @@
 
 #include <chronos/price_level.hpp>
 #include <chronos/memory_pool.hpp>
+#include <chronos/event_publisher.hpp>
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -17,8 +18,8 @@ namespace chronos {
  */
 class LimitOrderBook {
 public:
-    explicit LimitOrderBook(std::pmr::memory_resource* resource)
-        : bids_(resource), asks_(resource), order_lookup_(resource) {}
+    explicit LimitOrderBook(std::pmr::memory_resource* resource, EventPublisher* publisher = nullptr)
+        : bids_(resource), asks_(resource), order_lookup_(resource), publisher_(publisher) {}
 
     /**
      * @brief Process an incoming order: match it against the book or add it.
@@ -39,6 +40,14 @@ public:
             addToBook(order);
         } else {
             order->status = OrderStatus::Filled;
+        }
+
+        // Publish Events
+        if (publisher_) {
+            for (const auto& trade : trades) {
+                publisher_->publishTrade(trade);
+            }
+            publisher_->publishOrderUpdate(*order);
         }
 
         return trades;
@@ -161,11 +170,20 @@ private:
             if (matching_order->quantity.value() == match_qty) {
                 matching_order->status = OrderStatus::Filled;
                 matching_order->quantity = Quantity(0);
+                
+                if (publisher_) {
+                    publisher_->publishOrderUpdate(*matching_order);
+                }
+
                 order_lookup_.erase(matching_order->id);
                 level.popFront();
             } else {
                 matching_order->status = OrderStatus::Partial;
                 level.fillFront(match_qty);
+
+                if (publisher_) {
+                    publisher_->publishOrderUpdate(*matching_order);
+                }
             }
         }
     }
@@ -177,6 +195,8 @@ private:
     
     // Global lookup for O(1) cancellations
     std::pmr::unordered_map<OrderId, OrderEntry> order_lookup_;
+
+    EventPublisher* publisher_;
 };
 
 } // namespace chronos
