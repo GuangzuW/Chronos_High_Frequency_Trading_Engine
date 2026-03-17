@@ -27,15 +27,16 @@ public:
      */
     std::pmr::vector<Trade> processOrder(Order* order, std::pmr::memory_resource* trade_resource) {
         std::pmr::vector<Trade> trades(trade_resource);
+        trades.reserve(16);
 
-        if (order->side == OrderSide::Buy) {
+        if (order->side == OrderSide::Buy) [[likely]] {
             matchAgainstAsks(order, trades);
         } else {
             matchAgainstBids(order, trades);
         }
 
         // If order still has quantity, add to the book
-        if (order->quantity.value() > 0) {
+        if (order->quantity.value() > 0) [[likely]] {
             order->status = (order->status == OrderStatus::New) ? OrderStatus::New : OrderStatus::Partial;
             addToBook(order);
         } else {
@@ -119,12 +120,12 @@ private:
     void matchAgainstAsks(Order* order, std::pmr::vector<Trade>& trades) {
         while (order->quantity.value() > 0 && !asks_.empty()) {
             auto best_ask_it = asks_.begin();
-            if (order->price < best_ask_it->first) break;
+            if (order->price < best_ask_it->first) [[unlikely]] break;
 
             PriceLevel& level = best_ask_it->second;
             matchLevel(order, level, trades);
 
-            if (level.empty()) {
+            if (level.empty()) [[likely]] {
                 asks_.erase(best_ask_it);
             }
         }
@@ -133,12 +134,12 @@ private:
     void matchAgainstBids(Order* order, std::pmr::vector<Trade>& trades) {
         while (order->quantity.value() > 0 && !bids_.empty()) {
             auto best_bid_it = bids_.begin();
-            if (order->price > best_bid_it->first) break;
+            if (order->price > best_bid_it->first) [[unlikely]] break;
 
             PriceLevel& level = best_bid_it->second;
             matchLevel(order, level, trades);
 
-            if (level.empty()) {
+            if (level.empty()) [[likely]] {
                 bids_.erase(best_bid_it);
             }
         }
