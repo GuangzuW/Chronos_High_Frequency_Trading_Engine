@@ -54,3 +54,15 @@ private:
 };
 
 } // namespace chronos
+
+/**
+ * @brief Hash specialization for StrongType to allow usage in unordered containers.
+ */
+namespace std {
+    template <typename T, typename Tag>
+    struct hash<chronos::StrongType<T, Tag>> {
+        size_t operator()(const chronos::StrongType<T, Tag>& st) const noexcept {
+            return std::hash<T>{}(st.value());
+        }
+    };
+}
