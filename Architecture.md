@@ -50,6 +50,20 @@ The system is containerized using Docker, allowing for horizontal scalability vi
 * **Role:** Logging and Audit.
 * **Strategy:** Asynchronous decoupling. The Matching Engine "fires and forgets" trade data via a ZeroMQ PUB socket. This service listens and writes to disk/database off the critical path, ensuring that slow disk I/O never slows down trading.
 
+### E. UI Ecosystem ( The Glass )
+* **Role:** Real-time visualization and simulation control.
+* **Components:**
+    1. **API Bridge (FastAPI/Python)**:
+        * Acts as a translator between the C++ binary world and the Web JSON world.
+        * **ZMQ Subscriber**: Continuously decodes 64-byte binary `Trade` and `Order` events from the Engine.
+        * **WebSocket Server**: Streams JSON events to the frontend at low latency.
+        * **REST API**: Provides endpoints for the UI to submit new orders (which are then forwarded to the Engine via ZMQ).
+    2. **Frontend Dashboard (Next.js/React)**:
+        * **Order Book**: High-frequency visualization of Bid/Ask depth.
+        * **The Tape**: A scrolling feed of real-time trade executions.
+        * **Performance Charts**: Real-time price and volume tracking using `lightweight-charts`.
+        * **Control Center**: Interface for manual order entry and risk setting overrides.
+
 ### 4. Scalability Strategy
    Chronos does not use generic Round-Robin load balancing. Instead, it uses **Functional Partitioning (Sharding):**
 
