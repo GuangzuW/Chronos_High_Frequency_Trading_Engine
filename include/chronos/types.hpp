@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <array>
 #include <cstddef>
+#include <chronos/strong_type.hpp>
 
 namespace chronos {
 
@@ -19,15 +20,18 @@ enum class OrderStatus : uint8_t {
     Rejected = 4
 };
 
-// Fixed-point representation for price and quantity
-using Price = int64_t;
-using Quantity = int64_t;
+/**
+ * @brief Strong type definitions for core identifiers.
+ */
+using OrderId = StrongType<uint64_t, struct OrderIdTag>;
+using Price = StrongType<int64_t, struct PriceTag>;
+using Quantity = StrongType<int64_t, struct QuantityTag>;
 
 /**
  * @brief Core Order structure, aligned to 64-byte cache line.
  */
 struct alignas(64) Order {
-    uint64_t id;             // 8 bytes
+    OrderId id;              // 8 bytes
     std::array<char, 8> symbol; // 8 bytes
     Price price;             // 8 bytes
     Quantity quantity;       // 8 bytes
@@ -46,8 +50,8 @@ struct alignas(64) Order {
  * @brief Trade execution structure, aligned to 64-byte cache line.
  */
 struct alignas(64) Trade {
-    uint64_t buy_order_id;   // 8 bytes
-    uint64_t sell_order_id;  // 8 bytes
+    OrderId buy_order_id;    // 8 bytes
+    OrderId sell_order_id;   // 8 bytes
     Price price;             // 8 bytes
     Quantity quantity;       // 8 bytes
     uint64_t timestamp;      // 8 bytes

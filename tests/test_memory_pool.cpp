@@ -21,20 +21,20 @@ TEST(MemoryPoolTest, AllocateType) {
     EXPECT_EQ(reinterpret_cast<std::uintptr_t>(order) % alignof(Order), 0);
     
     // Check we can write to it
-    order->id = 55;
-    EXPECT_EQ(order->id, 55);
+    order->id = OrderId(55);
+    EXPECT_EQ(order->id, OrderId(55));
 }
 
 TEST(MemoryPoolTest, UseWithPmrVector) {
     MemoryPool pool(1024);
     std::pmr::vector<Order> orders(pool.get_resource());
     
-    orders.push_back({.id = 1});
-    orders.push_back({.id = 2});
+    orders.push_back(Order{.id = OrderId(1)});
+    orders.push_back(Order{.id = OrderId(2)});
     
     EXPECT_EQ(orders.size(), 2);
-    EXPECT_EQ(orders[0].id, 1);
-    EXPECT_EQ(orders[1].id, 2);
+    EXPECT_EQ(orders[0].id, OrderId(1));
+    EXPECT_EQ(orders[1].id, OrderId(2));
 }
 
 TEST(MemoryPoolTest, ThrowsOnOverflow) {
