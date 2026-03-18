@@ -3,11 +3,16 @@ import threading
 import zmq
 import json
 import time
+import os
+import subprocess
 from typing import List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from bridge.schemas import Order, Trade, OrderRequest, OrderStatus
 from bridge.decoder import decode_order, decode_trade, encode_order
+
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 app = FastAPI(title="Chronos API Bridge")
 
@@ -84,6 +89,10 @@ def zmq_listener():
 async def startup_event():
     thread = threading.Thread(target=zmq_listener, daemon=True)
     thread.start()
+    
+    if os.environ.get("START_FEEDER") == "1":
+        print("[Bridge] Starting Market Data Feeder subprocess...")
+        subprocess.Popen(["python", "bridge/feeder.py"])
 
 @app.get("/health")
 async def health_check():
