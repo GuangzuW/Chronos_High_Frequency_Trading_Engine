@@ -57,11 +57,29 @@ sudo apt-get install -y cmake ninja-build libzmq3-dev
 
 ### Running the Engine
 
-Start the matching engine service:
-```bash
-./build/chronos_engine
-```
-The gateway will listen on port `5555` for orders and publish events on port `5556`.
+1. **Start the matching engine service**:
+   ```bash
+   ./build/bin/chronos_engine
+   ```
+   The gateway listens on port `5555` (Ingress) and publishes on port `5556` (Egress).
+
+2. **Start the API Bridge & Feeder (Python)**:
+   ```bash
+   # Configure environment
+   cp bridge/.env.example bridge/.env
+   # Edit bridge/.env to add your FINNHUB_API_KEY
+   
+   # Start the bridge (and feeder automatically)
+   START_FEEDER=1 PYTHONPATH=. python bridge/main.py
+   ```
+
+3. **Start the Dashboard (Next.js)**:
+   ```bash
+   cd dashboard
+   npm install
+   npm run dev
+   ```
+   Open `http://localhost:3000` to view the real-time matching engine in action.
 
 ### Running Tests & Benchmarks
 

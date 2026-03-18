@@ -63,6 +63,10 @@ The system is containerized using Docker, allowing for horizontal scalability vi
         * **The Tape**: A scrolling feed of real-time trade executions.
         * **Performance Charts**: Real-time price and volume tracking using `lightweight-charts`.
         * **Control Center**: Interface for manual order entry and risk setting overrides.
+    3. **Market Data Feeder (Finnhub Integration)**:
+        * **Role**: Injects real-world market volatility into the matching engine.
+        * **Logic**: Connects to Finnhub via WebSockets, translates live trades into synthesized Buy/Sell order pairs, and pushes them into the C++ Engine via ZMQ.
+        * **Benefits**: Enables end-to-end performance testing under real-world load conditions without altering the deterministic C++ core.
 
 ### 4. Scalability Strategy
    Chronos does not use generic Round-Robin load balancing. Instead, it uses **Functional Partitioning (Sharding):**
