@@ -103,11 +103,15 @@ async def place_order(request: OrderRequest):
     global order_id_counter
     order_id_counter += 1
     
+    # Scale to engine fixed-point
+    price = int(request.price * 100)
+    quantity = int(request.quantity * 1000)
+
     order = Order(
         id=order_id_counter,
         symbol=request.symbol,
-        price=request.price,
-        quantity=request.quantity,
+        price=price,
+        quantity=quantity,
         side=request.side,
         status=OrderStatus.NEW,
         timestamp=int(time.time_ns())

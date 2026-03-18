@@ -43,9 +43,17 @@ export const useTradeStore = create<TradeStore>((set) => ({
     set({ selectedSymbol: symbol, trades: [], bids: [], asks: [] }),
 
   addTrade: (trade) =>
-    set((state) => ({
-      trades: [trade, ...state.trades].slice(0, 50), // Keep last 50
-    })),
+    set((state) => {
+      // Normalize values from Engine (Fixed-point) to UI (Float)
+      const normalizedTrade = {
+        ...trade,
+        price: trade.price / 100,
+        quantity: trade.quantity / 1000
+      };
+      return {
+        trades: [normalizedTrade, ...state.trades].slice(0, 50),
+      };
+    }),
 
   updateOrderBook: (order) =>
     set((state) => {
@@ -55,15 +63,19 @@ export const useTradeStore = create<TradeStore>((set) => ({
       const isBuy = order.side === 0;
       const targetBook = isBuy ? [...state.bids] : [...state.asks];
       
-      const existingIndex = targetBook.findIndex((l) => l.price === order.price);
+      // Normalize values from Engine (Fixed-point) to UI (Float)
+      const normalizedPrice = order.price / 100;
+      const normalizedQty = order.quantity / 1000;
+
+      const existingIndex = targetBook.findIndex((l) => l.price === normalizedPrice);
       
-      if (order.quantity === 0 || order.status === 2) { // FILLED
+      if (normalizedQty === 0 || order.status === 2) { // FILLED
         if (existingIndex > -1) targetBook.splice(existingIndex, 1);
       } else {
         if (existingIndex > -1) {
-          targetBook[existingIndex].quantity = order.quantity;
+          targetBook[existingIndex].quantity = normalizedQty;
         } else {
-          targetBook.push({ price: order.price, quantity: order.quantity });
+          targetBook.push({ price: normalizedPrice, quantity: normalizedQty });
         }
       }
 
