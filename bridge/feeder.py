@@ -6,7 +6,8 @@ import zmq
 import time
 from dotenv import load_dotenv
 from bridge.schemas import Order, OrderSide, OrderStatus
-from bridge.decoder import encode_order
+from bridge import wire
+from bridge.wire import encode_order
 
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
@@ -44,11 +45,10 @@ def synthesize_and_send_orders(trade_data):
     raw_price = trade_data.get('p', 0.0)
     raw_qty = trade_data.get('v', 0.0)
     
-    # Chronos uses fixed-point integers. 
-    # Price scale: x100 (e.g. 150.25 -> 15025)
-    # Qty scale: We ensure at least 1, scaling up fractional crypto volumes.
-    price = int(raw_price * 100)
-    qty = max(1, int(raw_qty * 1000)) 
+    # Chronos uses fixed-point integers (scaling defined once in bridge.wire).
+    # Qty: ensure at least 1, scaling up fractional crypto volumes.
+    price = wire.scale_price(raw_price)
+    qty = max(1, wire.scale_quantity(raw_qty))
     timestamp = int(time.time_ns())
 
     # Create Buy Order

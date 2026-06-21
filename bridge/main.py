@@ -10,7 +10,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from bridge.schemas import Order, Trade, OrderRequest, OrderStatus
-from bridge.decoder import decode_order, decode_trade, encode_order
+from bridge import wire
+from bridge.wire import decode_order, decode_trade, encode_order
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
@@ -103,9 +104,9 @@ async def place_order(request: OrderRequest):
     global order_id_counter
     order_id_counter += 1
     
-    # Scale to engine fixed-point
-    price = int(request.price * 100)
-    quantity = int(request.quantity * 1000)
+    # Scale to engine fixed-point (single source of truth in bridge.wire)
+    price = wire.scale_price(request.price)
+    quantity = wire.scale_quantity(request.quantity)
 
     order = Order(
         id=order_id_counter,

@@ -32,6 +32,6 @@ class Trade(BaseModel):
 class OrderRequest(BaseModel):
     """Simplified model for incoming REST API requests"""
     symbol: str
-    price: int
-    quantity: int
+    price: float
+    quantity: float
     side: OrderSide
