@@ -21,7 +21,7 @@ jobs:
       
       - name: Install Dependencies
         run: |
-          apt-get update && apt_get install -y \
+          apt-get update && apt-get install -y \
           cmake ninja-build cppcheck python3-pip \
           libzmq3-dev lcov git
           pip3 install gcovr --break-system-package
@@ -62,7 +62,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          apt-get update && apt_get install -y \
+          apt-get update && apt-get install -y \
           cmake ninja-build libzmq3-dev
 
       - name: Configure CMake (Release)
