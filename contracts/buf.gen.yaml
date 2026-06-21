@@ -1,0 +1,21 @@
+version: v2
+# Generates language bindings from the canonical protos. The generated code is the
+# ONLY place Order/Trade/enum types are defined per language — nothing hand-written.
+#
+#   buf generate   # regenerates all targets; CI fails if this produces a diff.
+managed:
+  enabled: true
+plugins:
+  # C++ — consumed by chronos-client-core (clients) and the Market Gateway.
+  - remote: buf.build/protocolbuffers/cpp
+    out: gen/cpp
+  # Go — consumed by backend services (OMS, Account, Gateway, ...).
+  - remote: buf.build/protocolbuffers/go
+    out: gen/go
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go
+    out: gen/go
+    opt: paths=source_relative
+  # TypeScript — consumed by clients/web and the React Native UI layer.
+  - remote: buf.build/bufbuild/es
+    out: gen/ts

@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package chronos.trading.v1;
+
+// Canonical trading domain types — the single source of truth for the Order/Trade
+// contract shared by the Chronos engine, the Market Gateway, the backend services,
+// and the C++ client core. Code is generated from this for C++, Go, and TypeScript.
+//
+// NOTE: protobuf's own binary encoding is NOT the on-wire format used between the
+// engine and its clients. The engine exchanges fixed 64-byte, cache-aligned structs
+// over ZeroMQ. The exact byte layout the generated C++ codec MUST produce/parse is
+// specified in contracts/WIRE_FORMAT.md and locked by a golden-bytes test. This proto
+// defines the logical schema and the generated language types; the codec maps it to
+// the fixed layout.
+
+// Mirrors chronos::OrderSide (uint8_t) in include/chronos/types.hpp.
+enum OrderSide {
+  ORDER_SIDE_UNSPECIFIED = 0; // reserved; engine uses BUY=0, see note below
+  ORDER_SIDE_BUY = 1;         // wire value 0
+  ORDER_SIDE_SELL = 2;        // wire value 1
+}
+
+// Mirrors chronos::OrderStatus (uint8_t).
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0; // reserved
+  ORDER_STATUS_NEW = 1;         // wire value 0
+  ORDER_STATUS_PARTIAL = 2;     // wire value 1
+  ORDER_STATUS_FILLED = 3;      // wire value 2
+  ORDER_STATUS_CANCELED = 4;    // wire value 3
+  ORDER_STATUS_REJECTED = 5;    // wire value 4
+}
+
+// Fixed-point scaling — the SINGLE definition of the convention currently duplicated
+// across bridge/main.py, bridge/feeder.py and dashboard/.../useTradeStore.ts.
+// price_scaled  = round(price_float * PRICE_SCALE)
+// qty_scaled    = round(qty_float   * QUANTITY_SCALE)
+// Generated helpers in each language expose these constants and conversion functions.
+enum Scaling {
+  SCALING_UNSPECIFIED = 0;
+  SCALING_PRICE = 100;     // 2 decimal places
+  SCALING_QUANTITY = 1000; // 3 decimal places
+}
+
+// Logical Order. Wire layout (64 bytes): WIRE_FORMAT.md §Order.
+message Order {
+  uint64 id = 1;            // OrderId
+  string symbol = 2;        // max 8 ASCII chars; padded with NUL on the wire
+  sint64 price = 3;         // fixed-point, scaled by SCALING_PRICE
+  sint64 quantity = 4;      // fixed-point, scaled by SCALING_QUANTITY
+  OrderSide side = 5;
+  OrderStatus status = 6;
+  uint64 timestamp_ns = 7;  // nanoseconds since epoch
+}
+
+// Logical Trade. Wire layout (64 bytes): WIRE_FORMAT.md §Trade.
+message Trade {
+  uint64 buy_order_id = 1;
+  uint64 sell_order_id = 2;
+  sint64 price = 3;         // fixed-point, scaled by SCALING_PRICE
+  sint64 quantity = 4;      // fixed-point, scaled by SCALING_QUANTITY
+  uint64 timestamp_ns = 5;
+}
