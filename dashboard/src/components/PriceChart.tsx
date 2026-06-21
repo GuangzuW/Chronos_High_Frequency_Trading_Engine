@@ -1,77 +1,70 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { createChart, ISeriesApi, CandlestickData, Time, CandlestickSeries } from 'lightweight-charts';
+import {
+  createChart, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries,
+} from 'lightweight-charts';
 import { useTradeStore } from '@/store/useTradeStore';
 
+const BUCKET = 5; // seconds per candle
+
 const PriceChart = () => {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<any>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'>>(null);
-  const { trades } = useTradeStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const candleRef = useRef<CandlestickData | null>(null);
+  const { last, selectedSymbol } = useTradeStore();
 
   useEffect(() => {
-    if (!chartContainerRef.current) return;
-
-    const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { color: '#0a0a0a' },
-        textColor: '#d1d4dc',
-      },
-      grid: {
-        vertLines: { color: '#1f1f1f' },
-        horzLines: { color: '#1f1f1f' },
-      },
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
-      timeScale: {
-        timeVisible: true,
-        secondsVisible: true,
-      },
+    if (!containerRef.current) return;
+    const chart = createChart(containerRef.current, {
+      layout: { background: { color: '#1a2029' }, textColor: '#8e9cb0' },
+      grid: { vertLines: { color: '#2a3340' }, horzLines: { color: '#2a3340' } },
+      width: containerRef.current.clientWidth,
+      height: containerRef.current.clientHeight,
+      timeScale: { timeVisible: true, secondsVisible: true, borderColor: '#323a47' },
+      rightPriceScale: { borderColor: '#323a47' },
+      crosshair: { mode: 0 },
     });
-
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderVisible: false,
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
+    const series = chart.addSeries(CandlestickSeries, {
+      upColor: '#27b083', downColor: '#e86349', borderVisible: false,
+      wickUpColor: '#27b083', wickDownColor: '#e86349',
     });
-
     chartRef.current = chart;
-    seriesRef.current = candlestickSeries;
-
-    const handleResize = () => {
-      chart.applyOptions({ width: chartContainerRef.current?.clientWidth });
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      chart.remove();
-    };
+    seriesRef.current = series;
+    const onResize = () => chart.applyOptions({ width: containerRef.current?.clientWidth });
+    window.addEventListener('resize', onResize);
+    return () => { window.removeEventListener('resize', onResize); chart.remove(); };
   }, []);
 
-  // Update chart when new trades come in
+  // Reset candles when the symbol changes.
   useEffect(() => {
-    if (!seriesRef.current || trades.length === 0) return;
+    candleRef.current = null;
+    seriesRef.current?.setData([]);
+  }, [selectedSymbol]);
 
-    const lastTrade = trades[0];
-    const time = Math.floor(Date.now() / 1000) as Time;
+  // Build BUCKET-second OHLC candles from the live last price.
+  useEffect(() => {
+    if (!seriesRef.current || last == null) return;
+    const t = (Math.floor(Date.now() / 1000 / BUCKET) * BUCKET) as Time;
+    const cur = candleRef.current;
+    let next: CandlestickData;
+    if (!cur || cur.time !== t) {
+      next = { time: t, open: last, high: last, low: last, close: last };
+    } else {
+      next = {
+        time: t,
+        open: cur.open,
+        high: Math.max(cur.high, last),
+        low: Math.min(cur.low, last),
+        close: last,
+      };
+    }
+    candleRef.current = next;
+    seriesRef.current.update(next);
+  }, [last]);
 
-    // In a real app, we'd aggregate trades into candles. 
-    // Here we'll just update the "current" candle for visualization.
-    seriesRef.current.update({
-      time,
-      open: lastTrade.price,
-      high: lastTrade.price,
-      low: lastTrade.price,
-      close: lastTrade.price,
-    } as CandlestickData);
-  }, [trades]);
-
-  return <div ref={chartContainerRef} className="w-full h-full" />;
+  return <div ref={containerRef} className="w-full h-full" />;
 };
 
 export default PriceChart;

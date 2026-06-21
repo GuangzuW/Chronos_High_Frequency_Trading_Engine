@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
+/*
+  "Advanced Sense" palette — applied app-wide by overriding the Tailwind color scales that
+  components already use, so the whole UI re-skins with no per-component changes.
+    #213271 navy (brand/primary/selected) · #8FB9D1 light blue (accents) · #DDFAFB pale (highlights)
+    #E86349 coral (sell/down/alerts) · #252C38 charcoal (surfaces) · teal-green (buy/up, derived)
+*/
+@theme {
+  /* Surfaces (charcoal-based slate ramp) */
+  --color-neutral-950: #1a2029; /* app background */
+  --color-neutral-900: #252c38; /* panels (palette charcoal) */
+  --color-neutral-800: #323a47; /* borders / hover */
+  --color-neutral-700: #3e4757; /* stronger border */
+
+  /* Text / muted (cool slate ramp) */
+  --color-gray-600: #56627a;
+  --color-gray-500: #7e8ca1;
+  --color-gray-400: #a0aec2;
+  --color-gray-300: #bfcbda;
+  --color-gray-200: #d6e0ec;
+  --color-gray-100: #e7eff6;
+
+  /* Brand / primary (navy) + accent (light blue) */
+  --color-blue-600: #213271;
+  --color-blue-500: #2c4a8f;
+  --color-blue-400: #8fb9d1;
+  --color-blue-300: #aecde0;
+
+  /* Buy / up / positive (harmonized teal-green; palette has no green) */
+  --color-green-600: #1e9c77;
+  --color-green-500: #27b083;
+  --color-green-400: #46c39a;
+  --color-emerald-600: #1e9c77;
+  --color-emerald-500: #27b083;
+
+  /* Sell / down / alerts (coral) */
+  --color-red-600: #cf4730;
+  --color-red-500: #e0533a;
+  --color-red-400: #e86349;
+  --color-red-300: #f08d79;
+
+  /* Cohesion for accent dots */
+  --color-sky-500: #8fb9d1;
+  --color-cyan-500: #8fb9d1;
+  --color-amber-500: #e86349;
+  --color-orange-500: #e86349;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #1a2029;
+  --foreground: #e7eff6;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
+html, body {
+  height: 100%;
+  background: #1a2029;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+
+/* Thin dark scrollbars for data panels */
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: #3e4757 transparent; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #3e4757; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+
+.text-glow { text-shadow: 0 0 8px currentColor; }
