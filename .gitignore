@@ -75,7 +75,6 @@ test_results/
 */xml
 
 # Docker
-.dockerignore
 *.tar
 
 # Python

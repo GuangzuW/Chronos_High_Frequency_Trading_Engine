@@ -1,0 +1,32 @@
+# Chronos Trade — local/prod-like stack: Python API + Next.js dashboard.
+# Usage (from this dir):  docker compose up --build
+# Then: dashboard http://localhost:3000 · API http://localhost:8080
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: services/api/Dockerfile
+    environment:
+      PORT: "8080"
+      CHRONOS_DB: /data/chronos.db          # durable across restarts
+      CHRONOS_CORS_ORIGINS: http://localhost:3000
+      # CHRONOS_API_TOKEN: change-me          # uncomment to require auth on writes
+    ports:
+      - "8080:8080"
+    volumes:
+      - chronos-data:/data
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ../../dashboard
+      args:
+        NEXT_PUBLIC_API_BASE: http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  chronos-data:

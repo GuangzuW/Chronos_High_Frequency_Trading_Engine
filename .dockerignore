@@ -5,6 +5,20 @@ cmake-build-debug/
 
 # Ignore version control and IDE settings
 .git/
+.github/
 .vscode/
 .idea/
 .DS_Store
+
+# Python / data / docs (not needed in service images)
+**/__pycache__/
+**/*.pyc
+*.db
+*.db-wal
+*.db-shm
+dashboard/node_modules
+dashboard/.next
+clients/
+Plan/
+*.md
+img.png
