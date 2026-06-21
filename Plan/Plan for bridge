@@ -1,0 +1,45 @@
+Task 1: Environment & Dependency Setup (Infrastructure)
+   * Goal: Ensure the Python environment is ready for asynchronous WebSocket communication and secure API key
+     handling.
+   * Detailed Steps:
+       1. Dependency Addition: Add websockets (for the Finnhub connection) and python-dotenv (to load keys from a .env
+          file) to bridge/requirements.txt.
+       2. Git Security: Update the root .gitignore to explicitly exclude .env files to prevent accidental leakage of
+          your Finnhub API key.
+       3. Key Template: Create bridge/.env.example so other developers know they need to provide a FINNHUB_API_KEY and
+          a START_FEEDER flag.
+
+
+  Task 2: Feeder Script Implementation (bridge/feeder.py)
+   * Goal: Create a standalone service that pulls real-world data and "translates" it for the C++ engine.
+   * Detailed Steps:
+       1. WebSocket Client: Implement an asyncio-based client that connects to the Finnhub production endpoint.
+       2. Symbol Mapping: Create a dictionary (SYMBOL_MAP) to translate Finnhub's verbose symbols (e.g.,
+          BINANCE:BTCUSDT) into the engine's 8-character symbol format (BTC).
+       3. Trade Parsing: Extract price (p), volume (v), and symbol (s) from the incoming JSON messages.
+       4. Scaling Logic: Convert floating-point prices and quantities to the engine's expected fixed-point integers
+          (Price x100, Quantity x1000).
+
+
+  Task 3: ZMQ Integration & Order Synthesis (The "Market Maker")
+   * Goal: Inject matching data into the C++ hot-path without modifying C++ code.
+   * Detailed Steps:
+       1. ZMQ Dealer Setup: Initialize a ZMQ_DEALER socket in the feeder to talk to the engine's port 5555.
+       2. Order Pairing Logic: For every real trade received, generate two Chronos Order structs:
+           - A BUY order at the trade price.
+           - A SELL order at the same trade price.
+       3. Binary Encoding: Use the existing bridge/decoder.py to pack these structs into the required 64-byte binary
+          format.
+       4. Injection: Send both orders immediately. This forces the C++ engine to "cross" the orders and execute a
+          trade, simulating a live market match.
+
+
+  Task 4: Main Bridge Integration
+   * Goal: Make the feeder easy to run alongside the existing dashboard.
+   * Detailed Steps:
+       1. Environment Check: Modify bridge/main.py to check for START_FEEDER=1.
+       2. Subprocess Management: Use subprocess.Popen to launch feeder.py as a background process when the main bridge
+          starts.
+       3. Unified Startup: Ensure load_dotenv is called early in main.py so the configuration is shared across the
+          bridge and the spawned feeder.
+
