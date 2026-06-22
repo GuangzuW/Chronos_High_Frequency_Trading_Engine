@@ -104,9 +104,19 @@ file is the *what's-left and in-what-order*.
   default; `401` without token when set); **CORS allowlist** (echoes allowed origin); structured JSON
   **access logging** + `X-Request-Id`; **`/readyz`**. Quiet server subclass removes Windows socket-teardown
   flakiness. Tests added (auth/CORS/readyz/request-id). Verified live (token 401↔201, palette served).
+- ✅ **Production hardening — Tranche 2 (deployability)** — multi-stage **Dockerfiles** for the API
+  (`services/api/Dockerfile`, non-root, healthcheck) and dashboard (`dashboard/Dockerfile`), a
+  **`docker-compose`** stack (`deploy/compose/docker-compose.yml`), `.dockerignore`s, and **CI jobs**
+  running the Python suites + a Next.js lint+build (validates the dashboard on GitHub's runners).
+- ✅ **Production hardening — Tranche 4 (ops/scale, partial)** — Prometheus **`/metrics`** (request
+  counters + business gauges); per-IP **rate limiting** on writes (`429`, `CHRONOS_RATE_LIMIT`);
+  **graceful shutdown** on SIGTERM/SIGINT.
+- ✅ **API depth (Tranche 3, partial)** — **SSE symbol filter** (`/stream?symbols=`) and **order-history
+  pagination** (`/accounts/{id}/orders?limit&offset`).
 - ✅ Monorepo skeleton — `MONOREPO.md` + additive `services/ clients/ libs/ infra/ deploy/` stubs.
 
-> **Total: 142 Python tests passing** (15 bridge wire + 89 core + 38 API). Run everything:
+> **Total: 146 Python tests passing** (15 bridge wire + 89 core + 42 API), green across 15 consecutive
+> full-suite runs (Windows socket flake eliminated). Run everything:
 > `PYTHONPATH=. python3 -m unittest discover -t . -s services -p "test_*.py"` and
 > `PYTHONPATH=. python3 -m unittest bridge.tests.test_wire`.
 > These implement the *domain logic + a runnable API*; the production deployment (containers/mesh/IaC,
