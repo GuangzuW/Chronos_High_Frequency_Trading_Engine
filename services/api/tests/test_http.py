@@ -450,6 +450,53 @@ class HttpApiTest(unittest.TestCase):
         finally:
             resp.close()
 
+    def test_orders_pagination(self):
+        self.req("POST", "/instruments/equity", {"symbol": "PAG"})
+        self.req("POST", "/accounts/pg/fund", {"amount": 1_000_000})
+        for i in range(5):
+            self.req("POST", "/orders", {"account": "pg", "symbol": "PAG", "side": "buy",
+                                         "price": 10.0 + i, "quantity": 1})   # all rest (no asks)
+        _, page1 = self.req("GET", "/accounts/pg/orders?limit=2")
+        self.assertEqual(page1["total"], 5)
+        self.assertEqual(page1["limit"], 2)
+        self.assertEqual(len(page1["orders"]), 2)
+        _, page2 = self.req("GET", "/accounts/pg/orders?limit=2&offset=2")
+        self.assertEqual(len(page2["orders"]), 2)
+        self.assertNotEqual(page1["orders"][0]["id"], page2["orders"][0]["id"])
+
+    def test_sse_symbol_filter(self):
+        self.req("POST", "/instruments/equity", {"symbol": "FLT"})
+        self.req("POST", "/instruments/equity", {"symbol": "OTH"})
+        self.req("POST", "/accounts/fl/fund", {"amount": 1_000_000})
+        resp = urllib.request.urlopen(f"http://127.0.0.1:{self.port}/stream?symbols=FLT", timeout=5)
+        try:
+            # A trade in OTH should be filtered out; a trade in FLT should arrive.
+            self.req("POST", "/orders", {"account": "mmO", "symbol": "OTH", "side": "sell",
+                                         "price": 5.0, "quantity": 1})
+            self.req("POST", "/orders", {"account": "fl", "symbol": "OTH", "side": "buy",
+                                         "price": 5.0, "quantity": 1})
+            self.req("POST", "/orders", {"account": "mmF", "symbol": "FLT", "side": "sell",
+                                         "price": 7.0, "quantity": 1})
+            self.req("POST", "/orders", {"account": "fl", "symbol": "FLT", "side": "buy",
+                                         "price": 7.0, "quantity": 1})
+            got = None
+            for _ in range(200):
+                try:
+                    line = resp.readline()
+                except OSError:
+                    break
+                if not line:
+                    break
+                if line.startswith(b"data:"):
+                    ev = json.loads(line[5:].strip())
+                    if ev.get("type") == "trade":
+                        got = ev
+                        break
+            self.assertIsNotNone(got)
+            self.assertEqual(got["symbol"], "FLT")   # OTH was filtered server-side
+        finally:
+            resp.close()
+
     def test_cors_preflight(self):
         import urllib.request
         req = urllib.request.Request(f"http://127.0.0.1:{self.port}/orders", method="OPTIONS")

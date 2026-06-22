@@ -42,6 +42,7 @@ import time
 import uuid
 import queue
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit, parse_qs
 
 from services.api.app import TradingApp
 from services.api.config import load_config
@@ -53,8 +54,9 @@ from services.core.ledger import LedgerError
 logger = logging.getLogger("chronos.api")
 
 
-def route(app: TradingApp, method: str, parts: list[str], body: dict):
+def route(app: TradingApp, method: str, parts: list[str], body: dict, query: dict | None = None):
     """Return (status_code, payload) for a request. Raises map to error codes in the handler."""
+    query = query or {}
     if method == "GET" and parts == ["health"]:
         return 200, {"status": "ok", "service": "chronos-trade-core"}
     if method == "GET" and parts == ["readyz"]:
@@ -76,7 +78,11 @@ def route(app: TradingApp, method: str, parts: list[str], body: dict):
     if method == "GET" and len(parts) == 3 and parts[0] == "accounts" and parts[2] == "positions":
         return 200, app.positions(parts[1])
     if method == "GET" and len(parts) == 3 and parts[0] == "accounts" and parts[2] == "orders":
-        return 200, app.orders(parts[1])
+        lim = query.get("limit")
+        off = query.get("offset")
+        return 200, app.orders(parts[1],
+                               limit=int(lim[0]) if lim else None,
+                               offset=int(off[0]) if off else 0)
     if method == "GET" and len(parts) == 3 and parts[0] == "accounts" and parts[2] == "cashflow":
         return 200, app.cashflow(parts[1])
     if method == "GET" and len(parts) == 3 and parts[0] == "accounts" and parts[2] == "trades":
@@ -218,18 +224,22 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self._begin()
-        if self.path in ("/", "/index.html", "/dashboard"):
+        split = urlsplit(self.path)
+        path = split.path
+        if path in ("/", "/index.html", "/dashboard"):
             return self._send_html(DASHBOARD_HTML)
-        if self.path == "/metrics":
+        if path == "/metrics":
             metrics = self.server.metrics  # type: ignore[attr-defined]
             return self._send_text(render_prometheus(metrics, self.server.app),  # type: ignore[attr-defined]
                                    "text/plain; version=0.0.4; charset=utf-8")
-        if self.path == "/stream":
-            return self._stream()
+        if path == "/stream":
+            symbols = parse_qs(split.query).get("symbols", [None])[0]
+            return self._stream(symbols)
         self._dispatch("GET", {})
 
-    def _stream(self) -> None:
-        """Server-Sent Events: push trade/order events to the client in real time."""
+    def _stream(self, symbols_csv: str | None = None) -> None:
+        """Server-Sent Events feed. Optional ?symbols=A,B filters events to those symbols."""
+        wanted = {s for s in (symbols_csv.split(",") if symbols_csv else []) if s}
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -248,6 +258,8 @@ class _Handler(BaseHTTPRequestHandler):
                     self.wfile.write(b": ping\n\n")  # keep-alive heartbeat
                     self.wfile.flush()
                     continue
+                if wanted and event.get("symbol") not in wanted:
+                    continue  # filtered out for this subscriber
                 self.wfile.write(b"data: " + json.dumps(event).encode() + b"\n\n")
                 self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError, OSError):
@@ -276,10 +288,12 @@ class _Handler(BaseHTTPRequestHandler):
         self._dispatch("POST", body)
 
     def _dispatch(self, method: str, body: dict) -> None:
-        parts = [p for p in self.path.strip("/").split("/") if p != ""]
+        split = urlsplit(self.path)
+        parts = [p for p in split.path.strip("/").split("/") if p != ""]
+        query = parse_qs(split.query)
         app: TradingApp = self.server.app  # type: ignore[attr-defined]
         try:
-            status, payload = route(app, method, parts, body)
+            status, payload = route(app, method, parts, body, query)
         except KeyError as e:
             status, payload = 404, {"error": str(e).strip('"')}
         except (ValueError, LedgerError, TypeError) as e:

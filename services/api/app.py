@@ -165,9 +165,11 @@ class TradingApp:
     def get_order(self, order_id: int) -> dict:
         return self._order_dict(self.oms.get(order_id))
 
-    def orders(self, account: str) -> dict:
-        return {"account": account,
-                "orders": [self._order_dict(o) for o in self.oms.orders_for(account)]}
+    def orders(self, account: str, limit: int | None = None, offset: int = 0) -> dict:
+        all_orders = self.oms.orders_for(account)
+        page = all_orders[offset: offset + limit] if limit is not None else all_orders[offset:]
+        return {"account": account, "total": len(all_orders), "limit": limit, "offset": offset,
+                "orders": [self._order_dict(o) for o in page]}
 
     def cashflow(self, account: str) -> dict:
         """Cash-balance time series for an account, derived from the ledger journal.
