@@ -5,6 +5,7 @@ does not bleed between tests.
 
 import json
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -28,15 +29,18 @@ class HttpApiTest(unittest.TestCase):
     def req(self, method, path, body=None):
         url = f"http://127.0.0.1:{self.port}{path}"
         data = json.dumps(body).encode() if body is not None else None
-        request = urllib.request.Request(
-            url, data=data, method=method,
-            headers={"Content-Type": "application/json"} if data else {},
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=5) as resp:
-                return resp.status, json.loads(resp.read())
-        except urllib.error.HTTPError as e:
-            return e.code, json.loads(e.read())
+        headers = {"Content-Type": "application/json"} if data else {}
+        for attempt in range(3):  # tolerate rare transient socket resets (Windows)
+            request = urllib.request.Request(url, data=data, method=method, headers=headers)
+            try:
+                with urllib.request.urlopen(request, timeout=5) as resp:
+                    return resp.status, json.loads(resp.read())
+            except urllib.error.HTTPError as e:
+                return e.code, json.loads(e.read())
+            except (ConnectionError, OSError):
+                if attempt == 2:
+                    raise
+                time.sleep(0.05)
 
     def test_readyz(self):
         status, payload = self.req("GET", "/readyz")
