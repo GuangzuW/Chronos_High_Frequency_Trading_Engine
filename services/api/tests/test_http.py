@@ -49,6 +49,21 @@ class HttpApiTest(unittest.TestCase):
         with urllib.request.urlopen(req, timeout=5) as resp:
             self.assertEqual(resp.headers.get("X-Request-Id"), "abc123")
 
+    def test_metrics_endpoint(self):
+        self.req("POST", "/instruments/equity", {"symbol": "MET"})
+        self.req("POST", "/accounts/m1/fund", {"amount": 100_000})
+        self.req("POST", "/orders", {"account": "mmMet", "symbol": "MET", "side": "sell",
+                                     "price": 10.0, "quantity": 1})
+        self.req("POST", "/orders", {"account": "m1", "symbol": "MET", "side": "buy",
+                                     "price": 10.0, "quantity": 1})
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/metrics", timeout=5) as r:
+            ctype = r.headers.get("Content-Type", "")
+            text = r.read().decode()
+        self.assertIn("text/plain", ctype)
+        self.assertIn("chronos_http_requests_total", text)
+        self.assertIn("chronos_orders_total", text)
+        self.assertIn("chronos_trades_total", text)
+
     def test_health(self):
         status, payload = self.req("GET", "/health")
         self.assertEqual(status, 200)

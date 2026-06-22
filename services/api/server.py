@@ -43,6 +43,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from services.api.app import TradingApp
 from services.api.config import load_config
+from services.api.metrics import Metrics, render_prometheus
 from services.api.web import DASHBOARD_HTML
 from services.core.ledger import LedgerError
 
@@ -133,6 +134,9 @@ class _Handler(BaseHTTPRequestHandler):
         self._rid = self.headers.get("X-Request-Id") or uuid.uuid4().hex[:8]
 
     def _log(self, status: int) -> None:
+        metrics = getattr(self.server, "metrics", None)  # type: ignore[attr-defined]
+        if metrics is not None:
+            metrics.inc_request(status)
         try:
             ms = round((time.monotonic() - getattr(self, "_t0", time.monotonic())) * 1000, 2)
             logger.info(json.dumps({"rid": getattr(self, "_rid", "-"), "method": self.command,
@@ -181,6 +185,16 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
         self._log(200)
 
+    def _send_text(self, text: str, content_type: str = "text/plain; charset=utf-8") -> None:
+        body = text.encode()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self._cors()
+        self.end_headers()
+        self.wfile.write(body)
+        self._log(200)
+
     def do_OPTIONS(self):  # CORS preflight — never requires auth
         self._begin()
         self.send_response(204)
@@ -197,6 +211,10 @@ class _Handler(BaseHTTPRequestHandler):
         self._begin()
         if self.path in ("/", "/index.html", "/dashboard"):
             return self._send_html(DASHBOARD_HTML)
+        if self.path == "/metrics":
+            metrics = self.server.metrics  # type: ignore[attr-defined]
+            return self._send_text(render_prometheus(metrics, self.server.app),  # type: ignore[attr-defined]
+                                   "text/plain; version=0.0.4; charset=utf-8")
         if self.path == "/stream":
             return self._stream()
         self._dispatch("GET", {})
@@ -277,6 +295,7 @@ def make_server(host: str = "127.0.0.1", port: int = 8080, db_path: str | None =
     server.app = TradingApp(db_path=db_path)  # type: ignore[attr-defined]
     server.api_token = api_token  # type: ignore[attr-defined]
     server.cors_origins = cors_origins or ["*"]  # type: ignore[attr-defined]
+    server.metrics = Metrics()  # type: ignore[attr-defined]
     return server
 
 

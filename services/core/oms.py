@@ -105,6 +105,9 @@ class OMS:
     def last_price(self, symbol: str):
         return self._last_price.get(symbol)
 
+    def order_count(self) -> int:
+        return len(self._orders)
+
     def orders_for(self, account: str) -> list[Order]:
         """All orders (any status) for an account, newest first."""
         return sorted((o for o in self._orders.values() if o.account == account),
