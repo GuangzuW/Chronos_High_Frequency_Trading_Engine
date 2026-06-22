@@ -36,6 +36,8 @@ from __future__ import annotations
 
 import json
 import logging
+import signal
+import threading
 import time
 import uuid
 import queue
@@ -321,7 +323,14 @@ if __name__ == "__main__":
     cors = "*" if cfg.cors_origins == ["*"] else ",".join(cfg.cors_origins)
     rl = f"{cfg.rate_limit}/min" if cfg.rate_limit else "off"
     print(f"[chronos-trade-core] HTTP API on :{cfg.port} ({store}; {auth}; cors={cors}; ratelimit={rl})")
+
+    def _graceful(signum, _frame):  # SIGTERM (docker stop / k8s) and SIGINT
+        logger.info(json.dumps({"event": "shutdown", "signal": signum}))
+        threading.Thread(target=srv.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, _graceful)
+    signal.signal(signal.SIGINT, _graceful)
     try:
         srv.serve_forever()
-    except KeyboardInterrupt:
-        srv.shutdown()
+    finally:
+        srv.server_close()
