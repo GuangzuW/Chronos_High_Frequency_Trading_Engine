@@ -114,3 +114,40 @@ jobs:
           files: chronos_engine
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # JOB 5: Python backend test suites (services/core, services/api, bridge wire)
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install bridge dependency
+        run: pip install pydantic
+      - name: Run service + bridge test suites
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m unittest discover -t . -s services -p "test_*.py"
+          python -m unittest bridge.tests.test_wire
+
+  # JOB 6: Dashboard lint + production build (validates the Next.js/TypeScript app)
+  dashboard-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_BASE: http://localhost:8080
+        run: npm run build
