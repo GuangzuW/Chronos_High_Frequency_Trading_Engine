@@ -4,6 +4,7 @@
     CHRONOS_DB             SQLite path for persistence (default: in-memory)
     CHRONOS_CORS_ORIGINS   comma-separated allowlist, or "*" (default "*")
     CHRONOS_API_TOKEN      if set, mutating requests require Authorization: Bearer <token>
+    CHRONOS_RATE_LIMIT     max mutating requests/min per client IP (0 = disabled, default)
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ class Config:
     db_path: str | None = None
     cors_origins: list[str] = field(default_factory=lambda: ["*"])
     api_token: str | None = None
+    rate_limit: int = 0
 
 
 def load_config() -> Config:
@@ -31,4 +33,5 @@ def load_config() -> Config:
         db_path=os.environ.get("CHRONOS_DB") or None,
         cors_origins=origins,
         api_token=os.environ.get("CHRONOS_API_TOKEN") or None,
+        rate_limit=int(os.environ.get("CHRONOS_RATE_LIMIT", "0")),
     )

@@ -44,6 +44,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from services.api.app import TradingApp
 from services.api.config import load_config
 from services.api.metrics import Metrics, render_prometheus
+from services.api.ratelimit import RateLimiter
 from services.api.web import DASHBOARD_HTML
 from services.core.ledger import LedgerError
 
@@ -164,6 +165,12 @@ class _Handler(BaseHTTPRequestHandler):
             return True
         return self.headers.get("Authorization", "") == f"Bearer {token}"
 
+    def _rate_ok(self) -> bool:
+        limiter = getattr(self.server, "rate_limiter", None)  # type: ignore[attr-defined]
+        if limiter is None:
+            return True
+        return limiter.allow(self.client_address[0])
+
     def _send(self, status: int, payload) -> None:
         body = json.dumps(payload).encode()
         self.send_response(status)
@@ -250,12 +257,16 @@ class _Handler(BaseHTTPRequestHandler):
         self._begin()
         if not self._authorized():
             return self._send(401, {"error": "unauthorized"})
+        if not self._rate_ok():
+            return self._send(429, {"error": "rate limit exceeded"})
         self._dispatch("DELETE", {})
 
     def do_POST(self):
         self._begin()
         if not self._authorized():
             return self._send(401, {"error": "unauthorized"})
+        if not self._rate_ok():
+            return self._send(429, {"error": "rate limit exceeded"})
         try:
             body = self._read_body()
         except json.JSONDecodeError:
@@ -289,25 +300,27 @@ class _Server(ThreadingHTTPServer):
 
 
 def make_server(host: str = "127.0.0.1", port: int = 8080, db_path: str | None = None,
-                api_token: str | None = None,
-                cors_origins: list[str] | None = None) -> ThreadingHTTPServer:
+                api_token: str | None = None, cors_origins: list[str] | None = None,
+                rate_limit: int = 0) -> ThreadingHTTPServer:
     server = _Server((host, port), _Handler)
     server.app = TradingApp(db_path=db_path)  # type: ignore[attr-defined]
     server.api_token = api_token  # type: ignore[attr-defined]
     server.cors_origins = cors_origins or ["*"]  # type: ignore[attr-defined]
     server.metrics = Metrics()  # type: ignore[attr-defined]
+    server.rate_limiter = RateLimiter(rate_limit)  # type: ignore[attr-defined]
     return server
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     cfg = load_config()
-    srv = make_server("0.0.0.0", cfg.port, db_path=cfg.db_path,
-                      api_token=cfg.api_token, cors_origins=cfg.cors_origins)
+    srv = make_server("0.0.0.0", cfg.port, db_path=cfg.db_path, api_token=cfg.api_token,
+                      cors_origins=cfg.cors_origins, rate_limit=cfg.rate_limit)
     store = f"persistent: {cfg.db_path}" if cfg.db_path else "in-memory"
     auth = "token-protected writes" if cfg.api_token else "open"
     cors = "*" if cfg.cors_origins == ["*"] else ",".join(cfg.cors_origins)
-    print(f"[chronos-trade-core] HTTP API on :{cfg.port} ({store}; {auth}; cors={cors})")
+    rl = f"{cfg.rate_limit}/min" if cfg.rate_limit else "off"
+    print(f"[chronos-trade-core] HTTP API on :{cfg.port} ({store}; {auth}; cors={cors}; ratelimit={rl})")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

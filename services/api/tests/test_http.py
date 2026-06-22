@@ -534,5 +534,39 @@ class AuthApiTest(unittest.TestCase):
             self.assertNotEqual(r.headers.get("Access-Control-Allow-Origin"), "http://evil.example")
 
 
+class RateLimitApiTest(unittest.TestCase):
+    """Server with a small per-IP rate limit on mutating requests."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.server = make_server("127.0.0.1", 0, rate_limit=3)  # 3 writes/min per IP
+        cls.port = cls.server.server_address[1]
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+
+    def post(self, symbol):
+        url = f"http://127.0.0.1:{self.port}/instruments/equity"
+        req = urllib.request.Request(url, data=json.dumps({"symbol": symbol}).encode(),
+                                     method="POST", headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return r.status
+        except urllib.error.HTTPError as e:
+            return e.code
+
+    def test_mutating_requests_are_rate_limited(self):
+        codes = [self.post(f"RL{i}") for i in range(4)]
+        self.assertEqual(codes[:3], [201, 201, 201])   # first 3 within budget
+        self.assertEqual(codes[3], 429)                # 4th exceeds the limit
+        # Reads are never limited.
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/health", timeout=5) as r:
+            self.assertEqual(r.status, 200)
+
+
 if __name__ == "__main__":
     unittest.main()
