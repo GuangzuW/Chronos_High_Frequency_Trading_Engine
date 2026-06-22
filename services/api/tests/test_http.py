@@ -42,6 +42,22 @@ class HttpApiTest(unittest.TestCase):
                     raise
                 time.sleep(0.05)
 
+    def _open_stream(self, path):
+        for attempt in range(3):  # tolerate transient connect resets (Windows)
+            try:
+                return urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=5)
+            except (ConnectionError, OSError):
+                if attempt == 2:
+                    raise
+                time.sleep(0.05)
+
+    @staticmethod
+    def _close(resp):
+        try:
+            resp.close()
+        except OSError:
+            pass
+
     def test_readyz(self):
         status, payload = self.req("GET", "/readyz")
         self.assertEqual(status, 200)
@@ -426,7 +442,7 @@ class HttpApiTest(unittest.TestCase):
         self.req("POST", "/instruments/equity", {"symbol": "STRM"})
         self.req("POST", "/accounts/st/fund", {"amount": 100_000})
         # Open the SSE stream first so we are subscribed before the trade is published.
-        resp = urllib.request.urlopen(f"http://127.0.0.1:{self.port}/stream", timeout=5)
+        resp = self._open_stream("/stream")
         try:
             # Generate a trade.
             self.req("POST", "/orders", {"account": "mmZ", "symbol": "STRM", "side": "sell",
@@ -452,7 +468,7 @@ class HttpApiTest(unittest.TestCase):
             self.assertEqual(got["price"], 20.0)
             self.assertEqual(got["quantity"], 2.0)
         finally:
-            resp.close()
+            self._close(resp)
 
     def test_orders_pagination(self):
         self.req("POST", "/instruments/equity", {"symbol": "PAG"})
@@ -472,7 +488,7 @@ class HttpApiTest(unittest.TestCase):
         self.req("POST", "/instruments/equity", {"symbol": "FLT"})
         self.req("POST", "/instruments/equity", {"symbol": "OTH"})
         self.req("POST", "/accounts/fl/fund", {"amount": 1_000_000})
-        resp = urllib.request.urlopen(f"http://127.0.0.1:{self.port}/stream?symbols=FLT", timeout=5)
+        resp = self._open_stream("/stream?symbols=FLT")
         try:
             # A trade in OTH should be filtered out; a trade in FLT should arrive.
             self.req("POST", "/orders", {"account": "mmO", "symbol": "OTH", "side": "sell",
@@ -499,7 +515,7 @@ class HttpApiTest(unittest.TestCase):
             self.assertIsNotNone(got)
             self.assertEqual(got["symbol"], "FLT")   # OTH was filtered server-side
         finally:
-            resp.close()
+            self._close(resp)
 
     def test_cors_preflight(self):
         import urllib.request
