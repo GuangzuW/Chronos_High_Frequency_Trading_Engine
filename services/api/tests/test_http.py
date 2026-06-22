@@ -562,12 +562,17 @@ class AuthApiTest(unittest.TestCase):
         headers = {"Content-Type": "application/json"} if data else {}
         if token:
             headers["Authorization"] = f"Bearer {token}"
-        request = urllib.request.Request(url, data=data, method=method, headers=headers)
-        try:
-            with urllib.request.urlopen(request, timeout=5) as resp:
-                return resp.status, json.loads(resp.read())
-        except urllib.error.HTTPError as e:
-            return e.code, json.loads(e.read())
+        for attempt in range(3):
+            request = urllib.request.Request(url, data=data, method=method, headers=headers)
+            try:
+                with urllib.request.urlopen(request, timeout=5) as resp:
+                    return resp.status, json.loads(resp.read())
+            except urllib.error.HTTPError as e:
+                return e.code, json.loads(e.read())
+            except (ConnectionError, OSError):
+                if attempt == 2:
+                    raise
+                time.sleep(0.05)
 
     def test_get_is_open(self):
         status, payload = self.req("GET", "/health")
@@ -618,13 +623,19 @@ class RateLimitApiTest(unittest.TestCase):
 
     def post(self, symbol):
         url = f"http://127.0.0.1:{self.port}/instruments/equity"
-        req = urllib.request.Request(url, data=json.dumps({"symbol": symbol}).encode(),
-                                     method="POST", headers={"Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(req, timeout=5) as r:
-                return r.status
-        except urllib.error.HTTPError as e:
-            return e.code
+        data = json.dumps({"symbol": symbol}).encode()
+        for attempt in range(3):  # transient connect resets never reach the limiter
+            req = urllib.request.Request(url, data=data, method="POST",
+                                         headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=5) as r:
+                    return r.status
+            except urllib.error.HTTPError as e:
+                return e.code
+            except (ConnectionError, OSError):
+                if attempt == 2:
+                    raise
+                time.sleep(0.05)
 
     def test_mutating_requests_are_rate_limited(self):
         codes = [self.post(f"RL{i}") for i in range(4)]
